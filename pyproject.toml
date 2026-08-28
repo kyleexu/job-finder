@@ -1,0 +1,21 @@
+[project]
+name = "job-finder"
+version = "0.1.0"
+description = "Job Finder AI agent: LLM + tools + FastAPI"
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+dev = ["ruff>=0.8.0"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+include = ["app/**/*.py", "core/**/*.py", "run.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "BLE", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
