@@ -300,6 +300,7 @@
     const userLabel = document.getElementById("user-label");
     let userId = localStorage.getItem(USER_KEY) || "";
     let conversationId = null;
+    let chatSeq = 0;
 
     function convKey() {
       return "job-finder.conversation_id." + userId;
@@ -424,6 +425,7 @@
     }
 
     async function openConversation(id) {
+      chatSeq += 1;
       conversationId = id;
       localStorage.setItem(convKey(), id);
       const res = await fetch("/api/conversations/" + id, { headers: headers() });
@@ -437,6 +439,7 @@
     }
 
     function startNew() {
+      chatSeq += 1;
       conversationId = null;
       localStorage.removeItem(convKey());
       showEmpty();
@@ -452,6 +455,7 @@
       }
       userId = next;
       localStorage.setItem(USER_KEY, userId);
+      chatSeq += 1;
       conversationId = localStorage.getItem(convKey()) || null;
       updateUserLabel();
       gate.classList.add("hidden");
@@ -502,9 +506,16 @@
       pending.textContent = "正在思考…";
       thread.append(pending);
       thread.scrollTop = thread.scrollHeight;
+      const seq = chatSeq;
+      const startedConversationId = conversationId;
       try {
         const body = { message: text };
-        if (conversationId) body.conversation_id = conversationId;
+        if (startedConversationId) {
+          body.conversation_id = startedConversationId;
+        } else {
+          // 明确新建会话，避免误带上旧 conversation_id / 服务端残留历史
+          body.reset_history = true;
+        }
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: headers(true),
@@ -512,16 +523,27 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+        // 期间点了「新对话」或切到别的会话：丢弃这次回写，避免旧会话被重新激活
+        if (seq !== chatSeq) {
+          pending.remove();
+          return;
+        }
         conversationId = data.conversation_id;
         localStorage.setItem(convKey(), conversationId);
         addAssistant(data.reply || "", pending);
         refreshList();
       } catch (err) {
+        if (seq !== chatSeq) {
+          pending.remove();
+          return;
+        }
         pending.className = "msg error";
         pending.textContent = String(err.message || err);
       } finally {
-        send.disabled = false;
-        message.focus();
+        if (seq === chatSeq) {
+          send.disabled = false;
+          message.focus();
+        }
       }
     });
 

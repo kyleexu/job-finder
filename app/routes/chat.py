@@ -116,6 +116,8 @@ async def chat(
 
         history = store.list_messages(conversation_id)
         agent = get_job_finder_agent()
+        # 历史以 SQLite 为准；清空单例 Agent 内存，避免跨会话串台
+        agent.clear_history()
         reply = agent.run(request.message, history=history)
         store.append_turn(conversation_id, request.message, reply)
         elapsed_ms = (time.perf_counter() - started) * 1000

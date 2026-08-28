@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS conversations (
     user_id TEXT NOT NULL DEFAULT 'local',
     title TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    deleted INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,6 +46,7 @@ class Conversation:
     title: str
     created_at: str
     updated_at: str
+    deleted: int = 0
 
 
 def _now() -> str:
@@ -59,6 +61,19 @@ def db_path() -> Path:
     return path
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    cols = {row["name"] for row in conn.execute("PRAGMA table_info(conversations)").fetchall()}
+    if "deleted" not in cols:
+        conn.execute("ALTER TABLE conversations ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0")
+        logger.info("SQLite 迁移: conversations.deleted 已添加")
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_conversations_user_active
+            ON conversations(user_id, deleted, updated_at)
+        """
+    )
+
+
 def init_db() -> Path:
     global _CONN
     path = db_path()
@@ -70,6 +85,7 @@ def init_db() -> Path:
             _CONN.execute("PRAGMA foreign_keys = ON")
             _CONN.execute("PRAGMA journal_mode = WAL")
             _CONN.executescript(_SCHEMA)
+            _migrate(_CONN)
             _CONN.commit()
     logger.info("SQLite 已就绪 path={}", path)
     return path
@@ -91,61 +107,94 @@ def _title_from(text: str) -> str:
     return line
 
 
+def _row_to_conversation(row: sqlite3.Row) -> Conversation:
+    data = dict(row)
+    data.setdefault("deleted", 0)
+    return Conversation(**data)
+
+
 def create_conversation(*, user_id: str = "local", title: str = "") -> Conversation:
     conv_id = str(uuid.uuid4())
     ts = _now()
     with _LOCK:
         _conn().execute(
-            "INSERT INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            """
+            INSERT INTO conversations (id, user_id, title, created_at, updated_at, deleted)
+            VALUES (?, ?, ?, ?, ?, 0)
+            """,
             (conv_id, user_id, title, ts, ts),
         )
         _conn().commit()
     logger.info("创建会话 id={} user_id={}", conv_id, user_id)
-    return Conversation(id=conv_id, user_id=user_id, title=title, created_at=ts, updated_at=ts)
+    return Conversation(
+        id=conv_id,
+        user_id=user_id,
+        title=title,
+        created_at=ts,
+        updated_at=ts,
+        deleted=0,
+    )
 
 
-def get_conversation(conversation_id: str, *, user_id: str | None = None) -> Conversation | None:
+def get_conversation(
+    conversation_id: str,
+    *,
+    user_id: str | None = None,
+    include_deleted: bool = False,
+) -> Conversation | None:
     with _LOCK:
         if user_id is None:
             row = _conn().execute(
-                "SELECT id, user_id, title, created_at, updated_at FROM conversations WHERE id = ?",
+                """
+                SELECT id, user_id, title, created_at, updated_at, deleted
+                FROM conversations WHERE id = ?
+                """,
                 (conversation_id,),
             ).fetchone()
         else:
             row = _conn().execute(
                 """
-                SELECT id, user_id, title, created_at, updated_at
+                SELECT id, user_id, title, created_at, updated_at, deleted
                 FROM conversations WHERE id = ? AND user_id = ?
                 """,
                 (conversation_id, user_id),
             ).fetchone()
     if row is None:
         return None
-    return Conversation(**dict(row))
+    conv = _row_to_conversation(row)
+    if conv.deleted and not include_deleted:
+        return None
+    return conv
 
 
 def list_conversations(*, user_id: str) -> list[Conversation]:
     with _LOCK:
         rows = _conn().execute(
             """
-            SELECT id, user_id, title, created_at, updated_at
+            SELECT id, user_id, title, created_at, updated_at, deleted
             FROM conversations
-            WHERE user_id = ?
+            WHERE user_id = ? AND deleted = 0
             ORDER BY updated_at DESC
             """,
             (user_id,),
         ).fetchall()
-    return [Conversation(**dict(row)) for row in rows]
+    return [_row_to_conversation(row) for row in rows]
 
 
 def delete_conversation(conversation_id: str, *, user_id: str) -> bool:
+    """软删除：只标记 deleted=1，不删库里的消息。"""
+    ts = _now()
     with _LOCK:
         cur = _conn().execute(
-            "DELETE FROM conversations WHERE id = ? AND user_id = ?",
-            (conversation_id, user_id),
+            """
+            UPDATE conversations
+            SET deleted = 1, updated_at = ?
+            WHERE id = ? AND user_id = ? AND deleted = 0
+            """,
+            (ts, conversation_id, user_id),
         )
         _conn().commit()
-    logger.info("删除会话 id={} user_id={} deleted={}", conversation_id, user_id, cur.rowcount)
+    logger.info("软删除会话 id={} user_id={} updated={}", conversation_id, user_id, cur.rowcount)
     return cur.rowcount > 0
 
 
@@ -175,15 +224,20 @@ def append_turn(conversation_id: str, user_text: str, assistant_text: str) -> No
             (conversation_id, assistant_text, ts),
         )
         conv = conn.execute(
-            "SELECT title FROM conversations WHERE id = ?",
+            "SELECT title FROM conversations WHERE id = ? AND deleted = 0",
             (conversation_id,),
         ).fetchone()
-        title = conv["title"] if conv else ""
-        if not title:
-            title = _title_from(user_text)
+        if conv is None:
+            raise ValueError(f"会话不存在或已删除: {conversation_id}")
+        title = conv["title"] or _title_from(user_text)
         conn.execute(
             "UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?",
             (title, ts, conversation_id),
         )
         conn.commit()
-    logger.info("写入会话回合 conversation_id={} user_chars={} assistant_chars={}", conversation_id, len(user_text), len(assistant_text))
+    logger.info(
+        "写入会话回合 conversation_id={} user_chars={} assistant_chars={}",
+        conversation_id,
+        len(user_text),
+        len(assistant_text),
+    )
