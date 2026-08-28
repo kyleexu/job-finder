@@ -10,6 +10,9 @@ build/
 .pytest_cache/
 .mypy_cache/
 .DS_Store
-/run.log
-/run.log.*
+*.log
+*.log.*
+*.log.json
+demo.log*
+logs/
 /data/
