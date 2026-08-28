@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.deepseek.com"
     llm_model_id: str = "deepseek-v4-flash"
 
+    jsearch_api_key: str = ""
+    jsearch_base_url: str = "https://api.openwebninja.com/jsearch"
+    jsearch_timeout: float = 20
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="",

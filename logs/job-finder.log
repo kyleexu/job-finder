@@ -1,0 +1,3 @@
+2026-08-28 16:14:56.225 | INFO     | app.logging_setup:setup_logging:65 | 日志文件: /Users/kylexu/workspace/job-finder/logs/job-finder.log
+2026-08-28 16:14:56.277 | INFO     | app.main:lifespan:20 | Job Finder 启动 name=Job Finder version=0.1.0 host=0.0.0.0 port=8001 llm_model=deepseek-v4-flash llm_base=https://api.deepseek.com jsearch_base=https://api.openwebninja.com/jsearch jsearch_key_set=True log_file=/Users/kylexu/workspace/job-finder/logs/job-finder.log
+2026-08-28 16:16:20.134 | INFO     | app.main:lifespan:33 | Job Finder 关闭，清理 Agent 缓存

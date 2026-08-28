@@ -28,7 +28,11 @@ cp .env.example .env
 python run.py
 ```
 
-服务默认运行在 `http://127.0.0.1:8001`。
+服务默认运行在 `http://127.0.0.1:8001`。请求日志写在项目根目录的 **`run.log`**。
+
+```bash
+./start.sh
+```
 
 ## 试一次对话
 
@@ -38,7 +42,7 @@ curl -X POST http://127.0.0.1:8001/api/chat \
   -d '{"message":"我想转 backend，简历该怎么改？"}'
 ```
 
-也可以打开 Swagger：`http://127.0.0.1:8001/docs`
+也可以打开页面：`http://127.0.0.1:8001/`，或 Swagger：`http://127.0.0.1:8001/docs`
 
 ## 内置工具
 
@@ -47,15 +51,27 @@ curl -X POST http://127.0.0.1:8001/api/chat \
 | `get_current_time` | 返回当前 UTC 时间 |
 | `get_role_info` | 岗位方向简介 |
 | `get_job_search_tip` | 求职流程小贴士 |
+| `search_jobs` | 通过 JSearch 搜索在招岗位 |
+| `get_job_details` | 按 job_id 拉岗位详情 |
 
-Agent 通过 `[TOOL_CALL:tool_name:params]` 格式调用工具（与 trip-planner 项目同一思路）。
+Agent 通过 DeepSeek [Tool Calls](https://api-docs.deepseek.com/guides/tool_calls/)（OpenAI 兼容 `tools` / `tool_calls`）调用工具。
+
+## 接入 JSearch
+
+搜岗是普通 HTTP 调用 [OpenWeb Ninja JSearch](https://www.openwebninja.com/api/jsearch)，不是 MCP：
+
+```bash
+curl -X GET 'https://api.openwebninja.com/jsearch/search-v2?query=developer%20jobs%20in%20chicago' \
+  -H 'X-API-Key: your-key'
+```
+
+把 Key 写入 `.env` 的 `JSEARCH_API_KEY`。`search_jobs` 默认 1 页；未配置 Key 时工具会提示，应用仍可启动。
 
 ## 下一步你可以改什么
 
 1. 在 `app/tools/builtin/job_tools.py` 加新工具
 2. 在 `app/agents/job_finder_agent.py` 改 system prompt
-3. 接 MCP server（参考 helloagents-trip-planner 的 MCPTool）
-4. 加 RAG：把岗位 JD / 面试题库向量化后检索
+3. 加 RAG：把岗位 JD / 面试题库向量化后检索
 
 ## 和 Java 的对应关系
 

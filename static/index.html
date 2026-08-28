@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Job Finder</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f1ea;
+      --card: #fffdf8;
+      --ink: #1c1917;
+      --muted: #78716c;
+      --line: #e7e0d6;
+      --accent: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+    h1 { font-size: 1.35rem; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; }
+    form {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 96px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font: inherit;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    label { color: var(--muted); font-size: 0.9rem; }
+    button {
+      background: var(--accent);
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .out {
+      margin-top: 20px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .meta { color: var(--muted); font-size: 0.8rem; margin-bottom: 10px; }
+    .err { color: #b91c1c; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Job Finder</h1>
+    <p class="sub">POST <code>/api/chat</code></p>
+    <form id="form">
+      <textarea id="message" required>我想看看德国的fintach的工作。</textarea>
+      <div class="row">
+        <label>
+          <input type="checkbox" id="reset" checked />
+          reset_history
+        </label>
+        <button type="submit" id="send">发送</button>
+      </div>
+    </form>
+    <div id="out" class="out hidden"></div>
+  </main>
+  <script>
+    const form = document.getElementById("form");
+    const message = document.getElementById("message");
+    const reset = document.getElementById("reset");
+    const send = document.getElementById("send");
+    const out = document.getElementById("out");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      send.disabled = true;
+      out.classList.remove("hidden", "err");
+      out.textContent = "请求中…";
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: message.value,
+            reset_history: reset.checked,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || JSON.stringify(data));
+        }
+        out.innerHTML = "";
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = `success=${data.success}  agent=${data.agent_name || ""}`;
+        const body = document.createElement("div");
+        body.textContent = data.reply || "";
+        out.append(meta, body);
+      } catch (err) {
+        out.classList.add("err");
+        out.textContent = String(err.message || err);
+      } finally {
+        send.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

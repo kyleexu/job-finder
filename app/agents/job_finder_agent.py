@@ -2,10 +2,13 @@
 
 from functools import lru_cache
 
+from loguru import logger
+
 from core.llm import LLMClient
 from core.simple_agent import SimpleAgent
 
 from ..config import get_settings
+from ..logging_setup import mask_secret
 from ..tools.builtin import build_default_tools
 from ..tools.registry import ToolRegistry
 
@@ -15,11 +18,15 @@ SYSTEM_PROMPT = """你是 Job Finder，一个帮助用户找工作、改简历�
 - 岗位方向选择（backend、frontend、data、PM 等）
 - 求职流程（简历、面试、内推、Offer、远程岗）
 - 针对 JD 的匹配建议与准备清单
+- 用 search_jobs 搜索真实在招岗位（JSearch / Google for Jobs 聚合）
 
 规则：
-1. 优先使用工具获取结构化信息，再组织自然语言回答。
+1. 需要实时岗位或结构化信息时调用工具，再组织自然语言回答。
 2. 不确定的内容要明确说明，不要编造具体薪资、公司内推名额或招聘政策。
 3. 默认用中文回答；用户用英文提问时可切换英文。
+4. 搜岗时 query 写清职位和地点，country 用 ISO 国家码。用户明确要某条详情再用 get_job_details。num_pages 默认 1。
+5. 用 Markdown 回答（标题、列表、加粗、链接）。
+6. 列出岗位时必须带上工具返回的投递链接，优先 apply_link，没有则用 google_link。写成 Markdown 链接，例如 [投递](完整URL)。不要省略、截断或改写 URL；没有链接时写「无投递链接」。
 """
 
 
@@ -27,12 +34,26 @@ def create_tool_registry() -> ToolRegistry:
     registry = ToolRegistry()
     for tool in build_default_tools():
         registry.register(tool)
+        logger.debug("注册工具 name={} description={}", tool.name, tool.description)
+    logger.info("工具注册完成 tools={}", registry.names())
     return registry
+
+
+def shutdown_job_finder_agent() -> None:
+    logger.info("shutdown_job_finder_agent: cache_clear")
+    get_job_finder_agent.cache_clear()
 
 
 @lru_cache
 def get_job_finder_agent() -> SimpleAgent:
     settings = get_settings()
+    logger.info(
+        "创建 Job Finder Agent model={} base_url={} llm_key={} jsearch_key={}",
+        settings.llm_model_id,
+        settings.llm_base_url,
+        mask_secret(settings.llm_api_key),
+        mask_secret(settings.jsearch_api_key),
+    )
     llm = LLMClient(
         model=settings.llm_model_id,
         api_key=settings.llm_api_key,

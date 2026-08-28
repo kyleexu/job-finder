@@ -1,5 +1,6 @@
 .env
 .venv/
+vendor/
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -9,3 +10,5 @@ build/
 .pytest_cache/
 .mypy_cache/
 .DS_Store
+/run.log
+/run.log.*

@@ -1,18 +1,24 @@
-"""带工具调用的 SimpleAgent"""
+"""带 DeepSeek Tool Calls 的 SimpleAgent。"""
 
-import re
+from __future__ import annotations
 
+import json
+import time
+from typing import Any
+
+from loguru import logger
+from openai.types.chat import ChatCompletionMessage
+
+from app.logging_setup import preview
 from app.tools.registry import ToolRegistry
 
 from .agent import Agent
 from .llm import LLMClient
 from .message import Message
 
-TOOL_CALL_PATTERN = re.compile(r"\[TOOL_CALL:([^:]+):([^\]]+)\]")
-
 
 class SimpleAgent(Agent):
-    """LLM + 可选工具调用的最小 Agent 实现。"""
+    """LLM + OpenAI/DeepSeek function calling。"""
 
     def __init__(
         self,
@@ -26,64 +32,124 @@ class SimpleAgent(Agent):
         self.tool_registry = tool_registry
         self.max_tool_rounds = max_tool_rounds
 
-    def _build_system_prompt(self) -> str:
-        base_prompt = self.system_prompt or "You are a helpful assistant."
-        if not self.tool_registry:
-            return base_prompt
-
-        tools_description = self.tool_registry.describe_tools()
-        return (
-            f"{base_prompt}\n\n"
-            "## Available tools\n"
-            f"{tools_description}\n\n"
-            "## Tool call format\n"
-            "When you need a tool, use:\n"
-            "`[TOOL_CALL:tool_name:key=value,...]`\n"
-            "Example: `[TOOL_CALL:get_transport_tip:topic=S-Bahn]`"
+    def run(self, user_input: str) -> str:
+        started = time.perf_counter()
+        logger.info(
+            "Agent[{}] 开始 user_input={} history_turns={}",
+            self.name,
+            preview(user_input, 400),
+            len(self._history),
         )
-
-    def _parse_tool_calls(self, text: str) -> list[dict[str, str]]:
-        return [
-            {"tool_name": tool_name.strip(), "parameters": parameters.strip()}
-            for tool_name, parameters in TOOL_CALL_PATTERN.findall(text)
+        messages: list[Any] = [
+            {"role": "system", "content": self.system_prompt or "You are a helpful assistant."},
         ]
+        messages.extend(self._history)
+        messages.append({"role": "user", "content": user_input})
 
-    def _execute_tool(self, tool_name: str, parameters: str) -> str:
+        tools = self.tool_registry.openai_tools() if self.tool_registry else None
+        logger.info(
+            "Agent[{}] 上下文 messages={} tools={}",
+            self.name,
+            len(messages),
+            [item["function"]["name"] for item in tools] if tools else [],
+        )
+        final_answer = ""
+
+        for round_idx in range(self.max_tool_rounds):
+            logger.info("Agent[{}] LLM 第 {}/{} 轮", self.name, round_idx + 1, self.max_tool_rounds)
+            message = self.llm.chat(messages, tools=tools)
+            messages.append(message)
+
+            if not message.tool_calls:
+                final_answer = message.content or ""
+                logger.info(
+                    "Agent[{}] 本轮无 tool_calls，结束 round={} answer_chars={}",
+                    self.name,
+                    round_idx + 1,
+                    len(final_answer),
+                )
+                break
+
+            logger.info(
+                "Agent[{}] 本轮 tool_calls={} names={}",
+                self.name,
+                len(message.tool_calls),
+                [call.function.name for call in message.tool_calls],
+            )
+            for tool_call in message.tool_calls:
+                result = self._execute_tool(
+                    tool_call.function.name,
+                    tool_call.function.arguments,
+                )
+                logger.info(
+                    "Agent[{}] 回传 tool 结果 name={} tool_call_id={} result={}",
+                    self.name,
+                    tool_call.function.name,
+                    tool_call.id,
+                    preview(result, 800),
+                )
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": result,
+                    }
+                )
+        else:
+            last = messages[-1]
+            if isinstance(last, ChatCompletionMessage):
+                final_answer = last.content or ""
+            elif isinstance(last, dict):
+                final_answer = str(last.get("content") or "")
+            else:
+                final_answer = getattr(last, "content", "") or ""
+            logger.warning(
+                "Agent[{}] 达到 max_tool_rounds={} 强制结束 answer={}",
+                self.name,
+                self.max_tool_rounds,
+                preview(final_answer, 400),
+            )
+
+        self.add_message(Message(role="user", content=user_input))
+        self.add_message(Message(role="assistant", content=final_answer))
+        logger.info(
+            "Agent[{}] 完成 elapsed_ms={:.0f} history_turns={} final={}",
+            self.name,
+            (time.perf_counter() - started) * 1000,
+            len(self._history),
+            preview(final_answer, 800),
+        )
+        return final_answer
+
+    def _execute_tool(self, tool_name: str, arguments_json: str) -> str:
+        logger.info("Agent 执行工具 name={} arguments={}", tool_name, preview(arguments_json, 800))
         if not self.tool_registry:
+            logger.error("Agent 无 tool_registry")
             return "No tools configured."
 
         tool = self.tool_registry.get(tool_name)
         if tool is None:
+            logger.error("未知工具 name={} known={}", tool_name, self.tool_registry.names())
             return f"Unknown tool: {tool_name}"
 
-        return tool.run(parameters)
-
-    def run(self, user_input: str) -> str:
-        messages = [Message(role="system", content=self._build_system_prompt())]
-        messages.extend(self._history)
-        messages.append(Message(role="user", content=user_input))
-
-        final_answer = ""
-
-        for _ in range(self.max_tool_rounds):
-            assistant_text = self.llm.chat(messages)
-            messages.append(Message(role="assistant", content=assistant_text))
-
-            tool_calls = self._parse_tool_calls(assistant_text)
-            if not tool_calls:
-                final_answer = assistant_text
-                break
-
-            tool_results: list[str] = []
-            for call in tool_calls:
-                result = self._execute_tool(call["tool_name"], call["parameters"])
-                tool_results.append(f"[{call['tool_name']}] {result}")
-
-            tool_message = "Tool results:\n" + "\n".join(tool_results)
-            messages.append(Message(role="user", content=tool_message))
-        else:
-            final_answer = messages[-1].content
-
-        self.add_message(Message(role="user", content=user_input))
-        self.add_message(Message(role="assistant", content=final_answer))
-        return final_answer
+        try:
+            arguments = json.loads(arguments_json or "{}")
+        except json.JSONDecodeError as exc:
+            logger.exception("工具参数 JSON 解析失败 name={} raw={}", tool_name, preview(arguments_json))
+            return f"Invalid tool arguments JSON: {exc}"
+        if not isinstance(arguments, dict):
+            logger.error("工具参数不是 object name={} type={}", tool_name, type(arguments).__name__)
+            return "Tool arguments must be a JSON object."
+        started = time.perf_counter()
+        try:
+            result = tool.run(arguments)
+        except Exception:
+            logger.exception("工具执行异常 name={} elapsed_ms={:.0f}", tool_name, (time.perf_counter() - started) * 1000)
+            raise
+        logger.info(
+            "工具执行完成 name={} elapsed_ms={:.0f} result_chars={}",
+            tool_name,
+            (time.perf_counter() - started) * 1000,
+            len(result),
+        )
+        return result

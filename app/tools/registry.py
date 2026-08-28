@@ -1,5 +1,7 @@
 """工具注册表"""
 
+from typing import Any
+
 from .base import Tool
 
 
@@ -15,7 +17,8 @@ class ToolRegistry:
     def get(self, name: str) -> Tool | None:
         return self._tools.get(name)
 
-    def describe_tools(self) -> str:
-        if not self._tools:
-            return "No tools available."
-        return "\n".join(tool.describe() for tool in self._tools.values())
+    def names(self) -> list[str]:
+        return list(self._tools)
+
+    def openai_tools(self) -> list[dict[str, Any]]:
+        return [tool.openai_schema() for tool in self._tools.values()]

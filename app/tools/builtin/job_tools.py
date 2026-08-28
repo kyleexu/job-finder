@@ -1,8 +1,12 @@
 """Job Finder 主题示例工具"""
 
 from datetime import datetime, timezone
+from typing import Any
+
+from loguru import logger
 
 from ..base import Tool
+from .jsearch import build_jsearch_tools
 
 JOB_ROLES = {
     "backend": "Backend: 服务端开发，常见栈 Python/Java/Go。看重系统设计、API、数据库与可靠性。",
@@ -22,38 +26,40 @@ JOB_SEARCH_TIPS = {
 }
 
 
-def _parse_key_value(parameters: str) -> dict[str, str]:
-    params: dict[str, str] = {}
-    for part in parameters.split(","):
-        part = part.strip()
-        if not part:
-            continue
-        if "=" in part:
-            key, value = part.split("=", 1)
-            params[key.strip()] = value.strip()
-        elif "topic" not in params:
-            params["topic"] = part
-    return params
-
-
 class GetCurrentTimeTool(Tool):
     name = "get_current_time"
-    description = "Get current UTC time. Parameters: timezone=UTC (optional)."
+    description = "Get the current UTC time."
+    parameters = {
+        "type": "object",
+        "properties": {},
+        "required": [],
+    }
 
-    def run(self, parameters: str) -> str:
-        now = datetime.now(timezone.utc)
-        return now.strftime("%Y-%m-%d %H:%M:%S UTC")
+    def run(self, arguments: dict[str, Any]) -> str:
+        del arguments
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
 class GetRoleInfoTool(Tool):
     name = "get_role_info"
-    description = "Get brief info about a job role. Parameters: name=backend|frontend|fullstack|data|pm|intern"
+    description = "Get brief info about a job role direction."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string",
+                "description": "Role key",
+                "enum": ["backend", "frontend", "fullstack", "data", "pm", "intern"],
+            }
+        },
+        "required": ["name"],
+    }
 
-    def run(self, parameters: str) -> str:
-        params = _parse_key_value(parameters)
-        key = params.get("name", params.get("topic", "")).lower()
+    def run(self, arguments: dict[str, Any]) -> str:
+        key = str(arguments.get("name") or "").lower()
+        logger.info("get_role_info name={}", key)
         if not key:
-            return "Please provide name=role"
+            return "Please provide name"
         return JOB_ROLES.get(
             key,
             f"No preset info for '{key}'. Try: {', '.join(JOB_ROLES)}",
@@ -62,13 +68,24 @@ class GetRoleInfoTool(Tool):
 
 class GetJobSearchTipTool(Tool):
     name = "get_job_search_tip"
-    description = "Get job search tips. Parameters: topic=resume|interview|networking|offer|remote"
+    description = "Get job search tips for a topic."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "topic": {
+                "type": "string",
+                "description": "Tip topic",
+                "enum": ["resume", "interview", "networking", "offer", "remote"],
+            }
+        },
+        "required": ["topic"],
+    }
 
-    def run(self, parameters: str) -> str:
-        params = _parse_key_value(parameters)
-        key = params.get("topic", "").lower()
+    def run(self, arguments: dict[str, Any]) -> str:
+        key = str(arguments.get("topic") or "").lower()
+        logger.info("get_job_search_tip topic={}", key)
         if not key:
-            return "Please provide topic=resume|interview|networking|offer|remote"
+            return "Please provide topic"
         return JOB_SEARCH_TIPS.get(
             key,
             f"No preset tip for '{key}'. Try: {', '.join(JOB_SEARCH_TIPS)}",
@@ -80,4 +97,5 @@ def build_default_tools() -> list[Tool]:
         GetCurrentTimeTool(),
         GetRoleInfoTool(),
         GetJobSearchTipTool(),
+        *build_jsearch_tools(),
     ]
