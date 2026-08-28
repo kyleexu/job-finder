@@ -123,7 +123,8 @@ class SearchJobsTool(Tool):
     name = "search_jobs"
     description = (
         "Search live jobs via OpenWeb Ninja JSearch HTTP API (GET /search-v2). "
-        "Put job title and location in query, e.g. 'backend engineer in Berlin'."
+        "Put job title and location in query, e.g. 'backend engineer in Berlin'. "
+        "Each job includes apply_link / google_link; always pass those URLs through to the user."
     )
     parameters = {
         "type": "object",

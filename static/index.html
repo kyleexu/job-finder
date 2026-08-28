@@ -7,128 +7,325 @@
   <style>
     :root {
       color-scheme: light;
-      --bg: #f4f1ea;
-      --card: #fffdf8;
-      --ink: #1c1917;
-      --muted: #78716c;
-      --line: #e7e0d6;
-      --accent: #1d4ed8;
+      --bg: #fff;
+      --ink: #0d0d0d;
+      --muted: #8f8f8f;
+      --line: #e5e5e5;
+      --user-bg: #f4f4f4;
+      --quote: #ececec;
+      --accent: #0d0d0d;
+      --link: #155eef;
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
       margin: 0;
+      display: flex;
+      flex-direction: column;
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
       background: var(--bg);
       color: var(--ink);
-      line-height: 1.5;
     }
-    main {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 32px 20px 64px;
-    }
-    h1 { font-size: 1.35rem; margin: 0 0 4px; }
-    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; }
-    form {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 16px;
-    }
-    textarea {
-      width: 100%;
-      min-height: 96px;
-      resize: vertical;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 10px 12px;
-      font: inherit;
-    }
-    .row {
+    header {
+      flex: 0 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      margin-top: 12px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--line);
     }
-    label { color: var(--muted); font-size: 0.9rem; }
-    button {
-      background: var(--accent);
-      color: white;
-      border: 0;
-      border-radius: 8px;
-      padding: 8px 16px;
+    header h1 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin: 0;
+    }
+    header button {
+      background: none;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
       font: inherit;
+      font-size: 0.85rem;
       cursor: pointer;
     }
-    button:disabled { opacity: 0.55; cursor: not-allowed; }
-    .out {
-      margin-top: 20px;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 16px;
+    #thread {
+      flex: 1 1 auto;
+      overflow: auto;
+      padding: 24px 16px 12px;
+    }
+    .empty {
+      max-width: 720px;
+      margin: 18vh auto 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 1.15rem;
+    }
+    .msg {
+      max-width: 720px;
+      margin: 0 auto 28px;
+    }
+    .msg.user {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .msg.user .bubble {
+      max-width: 80%;
+      background: var(--user-bg);
+      border-radius: 22px;
+      padding: 10px 16px;
       white-space: pre-wrap;
       word-break: break-word;
+      line-height: 1.6;
     }
-    .meta { color: var(--muted); font-size: 0.8rem; margin-bottom: 10px; }
-    .err { color: #b91c1c; }
-    .hidden { display: none; }
+    .msg.assistant .markdown {
+      font-size: 16px;
+      line-height: 1.75;
+      word-break: break-word;
+    }
+    .msg.assistant .actions {
+      display: flex;
+      gap: 4px;
+      margin-top: 10px;
+    }
+    .msg.assistant .actions button {
+      background: none;
+      border: 0;
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .msg.assistant .actions button:hover { background: var(--user-bg); }
+    .msg.pending { color: var(--muted); }
+    .msg.error { color: #b91c1c; white-space: pre-wrap; }
+    .composer-wrap {
+      flex: 0 0 auto;
+      padding: 0 16px 18px;
+    }
+    form {
+      max-width: 720px;
+      margin: 0 auto;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 8px 8px 8px 18px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+      background: #fff;
+    }
+    textarea {
+      flex: 1;
+      border: 0;
+      resize: none;
+      outline: none;
+      font: inherit;
+      font-size: 16px;
+      line-height: 1.5;
+      max-height: 160px;
+      min-height: 28px;
+      padding: 8px 0;
+      background: transparent;
+    }
+    #send {
+      width: 36px;
+      height: 36px;
+      border: 0;
+      border-radius: 50%;
+      background: #0d0d0d;
+      color: #fff;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+    #send:disabled { opacity: 0.35; cursor: not-allowed; }
+    .markdown h1, .markdown h2, .markdown h3 {
+      margin: 1.15em 0 0.45em;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+    .markdown h1 { font-size: 1.25rem; }
+    .markdown h2 { font-size: 1.12rem; }
+    .markdown h3 { font-size: 1.02rem; }
+    .markdown p { margin: 0.7em 0; }
+    .markdown p:first-child { margin-top: 0; }
+    .markdown ul, .markdown ol { margin: 0.5em 0; padding-left: 1.35em; }
+    .markdown li { margin: 0.25em 0; }
+    .markdown strong { font-weight: 650; }
+    .markdown a { color: var(--link); text-decoration: none; }
+    .markdown a:hover { text-decoration: underline; }
+    .markdown blockquote {
+      margin: 0.85em 0;
+      padding: 2px 0 2px 14px;
+      border-left: 3px solid #d4d4d4;
+      color: #404040;
+    }
+    .markdown blockquote p { margin: 0.35em 0; }
+    .markdown table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.8em 0;
+      font-size: 0.95em;
+    }
+    .markdown th, .markdown td {
+      border: 1px solid var(--line);
+      padding: 6px 10px;
+      text-align: left;
+    }
+    .markdown th { background: #fafafa; }
+    .markdown code {
+      font-size: 0.9em;
+      background: #f4f4f4;
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+    .markdown pre {
+      overflow: auto;
+      background: #f4f4f4;
+      padding: 12px 14px;
+      border-radius: 10px;
+    }
+    .markdown pre code { background: none; padding: 0; }
+    .markdown hr { border: 0; border-top: 1px solid var(--line); margin: 1.2em 0; }
   </style>
 </head>
 <body>
-  <main>
+  <header>
     <h1>Job Finder</h1>
-    <p class="sub">POST <code>/api/chat</code></p>
+    <button type="button" id="new-chat">新对话</button>
+  </header>
+  <div id="thread">
+    <div class="empty" id="empty">有什么想找的岗位？</div>
+  </div>
+  <div class="composer-wrap">
     <form id="form">
-      <textarea id="message" required>我想看看德国的fintach的工作。</textarea>
-      <div class="row">
-        <label>
-          <input type="checkbox" id="reset" checked />
-          reset_history
-        </label>
-        <button type="submit" id="send">发送</button>
-      </div>
+      <textarea id="message" rows="1" placeholder="问点什么…" required></textarea>
+      <button type="submit" id="send" aria-label="发送">↑</button>
     </form>
-    <div id="out" class="out hidden"></div>
-  </main>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
   <script>
+    if (window.marked) marked.setOptions({ gfm: true, breaks: true });
+
     const form = document.getElementById("form");
     const message = document.getElementById("message");
-    const reset = document.getElementById("reset");
     const send = document.getElementById("send");
-    const out = document.getElementById("out");
+    const thread = document.getElementById("thread");
+    const empty = document.getElementById("empty");
+    let firstSend = true;
+
+    function resizeInput() {
+      message.style.height = "auto";
+      message.style.height = Math.min(message.scrollHeight, 160) + "px";
+    }
+    message.addEventListener("input", resizeInput);
+
+    document.getElementById("new-chat").addEventListener("click", () => {
+      firstSend = true;
+      thread.innerHTML = "";
+      empty.className = "empty";
+      empty.textContent = "有什么想找的岗位？";
+      thread.append(empty);
+      message.value = "";
+      resizeInput();
+      message.focus();
+    });
+
+    function hideEmpty() {
+      if (empty.parentNode) empty.remove();
+    }
+
+    function renderMarkdown(text) {
+      const el = document.createElement("div");
+      el.className = "markdown";
+      if (window.marked && window.DOMPurify) {
+        el.innerHTML = DOMPurify.sanitize(marked.parse(text || ""));
+      } else {
+        el.textContent = text || "";
+      }
+      return el;
+    }
+
+    function addUser(text) {
+      hideEmpty();
+      const wrap = document.createElement("div");
+      wrap.className = "msg user";
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+      wrap.append(bubble);
+      thread.append(wrap);
+    }
+
+    function addPending() {
+      const wrap = document.createElement("div");
+      wrap.className = "msg assistant pending";
+      wrap.textContent = "正在思考…";
+      thread.append(wrap);
+      thread.scrollTop = thread.scrollHeight;
+      return wrap;
+    }
+
+    function addAssistant(text, target) {
+      target.className = "msg assistant";
+      target.textContent = "";
+      const md = renderMarkdown(text);
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.textContent = "复制";
+      copy.addEventListener("click", async () => {
+        await navigator.clipboard.writeText(text);
+        copy.textContent = "已复制";
+        setTimeout(() => { copy.textContent = "复制"; }, 1200);
+      });
+      actions.append(copy);
+      target.append(md, actions);
+      thread.scrollTop = thread.scrollHeight;
+    }
+
+    message.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const text = message.value.trim();
+      if (!text) return;
       send.disabled = true;
-      out.classList.remove("hidden", "err");
-      out.textContent = "请求中…";
+      addUser(text);
+      message.value = "";
+      resizeInput();
+      const pending = addPending();
       try {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            message: message.value,
-            reset_history: reset.checked,
+            message: text,
+            reset_history: firstSend,
           }),
         });
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data.detail || JSON.stringify(data));
         }
-        out.innerHTML = "";
-        const meta = document.createElement("div");
-        meta.className = "meta";
-        meta.textContent = `success=${data.success}  agent=${data.agent_name || ""}`;
-        const body = document.createElement("div");
-        body.textContent = data.reply || "";
-        out.append(meta, body);
+        firstSend = false;
+        addAssistant(data.reply || "", pending);
       } catch (err) {
-        out.classList.add("err");
-        out.textContent = String(err.message || err);
+        pending.className = "msg error";
+        pending.textContent = String(err.message || err);
       } finally {
         send.disabled = false;
+        message.focus();
       }
     });
   </script>
