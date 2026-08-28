@@ -28,7 +28,7 @@ cp .env.example .env
 python run.py
 ```
 
-服务默认运行在 `http://127.0.0.1:8001`。请求日志写在项目根目录的 **`run.log`**。
+服务默认运行在 `http://127.0.0.1:8001`。请求日志写在项目根目录的 **`run.log`**。会话存在本地 SQLite 文件 **`data/job-finder.db`**（刷新页面可继续聊）。
 
 ```bash
 ./start.sh
@@ -39,8 +39,11 @@ python run.py
 ```bash
 curl -X POST http://127.0.0.1:8001/api/chat \
   -H "Content-Type: application/json" \
+  -H "X-User-Id: kyle" \
   -d '{"message":"我想转 backend，简历该怎么改？"}'
 ```
+
+页面打开时会要求输入用户 ID；右上角可切换。会话按用户隔离，存在 `data/job-finder.db`。
 
 也可以打开页面：`http://127.0.0.1:8001/`，或 Swagger：`http://127.0.0.1:8001/docs`
 

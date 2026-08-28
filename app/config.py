@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     jsearch_api_key: str = ""
     jsearch_base_url: str = "https://api.openwebninja.com/jsearch"
     jsearch_timeout: float = 20
+    sqlite_path: str = "data/job-finder.db"
 
     model_config = SettingsConfigDict(
         env_file=".env",

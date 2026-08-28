@@ -12,6 +12,7 @@ from .agents.job_finder_agent import shutdown_job_finder_agent
 from .config import get_settings
 from .logging_setup import setup_logging
 from .routes.chat import router
+from .store import init_db
 
 settings = get_settings()
 log_file = setup_logging(settings.log_level)
@@ -20,8 +21,9 @@ _INDEX_HTML = Path(__file__).resolve().parent.parent / "static" / "index.html"
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    sqlite_file = init_db()
     logger.info(
-        "Job Finder 启动 name={} version={} host={} port={} llm_model={} llm_base={} jsearch_base={} jsearch_key_set={} log_file={}",
+        "Job Finder 启动 name={} version={} host={} port={} llm_model={} llm_base={} jsearch_base={} jsearch_key_set={} log_file={} sqlite={}",
         settings.app_name,
         settings.app_version,
         settings.host,
@@ -31,6 +33,7 @@ async def lifespan(_app: FastAPI):
         settings.jsearch_base_url,
         bool(settings.jsearch_api_key),
         log_file,
+        sqlite_file,
     )
     yield
     logger.info("Job Finder 关闭，清理 Agent 缓存")

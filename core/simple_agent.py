@@ -32,18 +32,19 @@ class SimpleAgent(Agent):
         self.tool_registry = tool_registry
         self.max_tool_rounds = max_tool_rounds
 
-    def run(self, user_input: str) -> str:
+    def run(self, user_input: str, history: list[Message] | None = None) -> str:
         started = time.perf_counter()
+        prior = list(history) if history is not None else list(self._history)
         logger.info(
             "Agent[{}] 开始 user_input={} history_turns={}",
             self.name,
             preview(user_input, 400),
-            len(self._history),
+            len(prior),
         )
         messages: list[Any] = [
             {"role": "system", "content": self.system_prompt or "You are a helpful assistant."},
         ]
-        messages.extend(self._history)
+        messages.extend(prior)
         messages.append({"role": "user", "content": user_input})
 
         tools = self.tool_registry.openai_tools() if self.tool_registry else None
@@ -88,6 +89,7 @@ class SimpleAgent(Agent):
                     tool_call.id,
                     preview(result, 800),
                 )
+                # 在每轮调用完 tool 之后，会把结果添加到 messages 列表中，然后在下次发起调用的时候，直接将这个 messages 
                 messages.append(
                     {
                         "role": "tool",
@@ -110,13 +112,14 @@ class SimpleAgent(Agent):
                 preview(final_answer, 400),
             )
 
-        self.add_message(Message(role="user", content=user_input))
-        self.add_message(Message(role="assistant", content=final_answer))
+        if history is None:
+            self.add_message(Message(role="user", content=user_input))
+            self.add_message(Message(role="assistant", content=final_answer))
         logger.info(
             "Agent[{}] 完成 elapsed_ms={:.0f} history_turns={} final={}",
             self.name,
             (time.perf_counter() - started) * 1000,
-            len(self._history),
+            len(prior) + 2,
             preview(final_answer, 800),
         )
         return final_answer

@@ -12,8 +12,7 @@
       --muted: #8f8f8f;
       --line: #e5e5e5;
       --user-bg: #f4f4f4;
-      --quote: #ececec;
-      --accent: #0d0d0d;
+      --sidebar: #f7f7f7;
       --link: #155eef;
     }
     * { box-sizing: border-box; }
@@ -21,33 +20,90 @@
     body {
       margin: 0;
       display: flex;
-      flex-direction: column;
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
       background: var(--bg);
       color: var(--ink);
     }
-    header {
-      flex: 0 0 auto;
+    aside {
+      width: 260px;
+      flex: 0 0 260px;
+      background: var(--sidebar);
+      border-right: 1px solid var(--line);
       display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+    aside .top {
+      padding: 12px;
+      display: flex;
+      gap: 8px;
       align-items: center;
-      justify-content: space-between;
-      padding: 12px 18px;
-      border-bottom: 1px solid var(--line);
     }
-    header h1 {
-      font-size: 0.95rem;
-      font-weight: 600;
-      margin: 0;
-    }
-    header button {
-      background: none;
+    aside h1 { font-size: 0.95rem; margin: 0; flex: 1; }
+    #new-chat, .del, #switch-user {
+      background: #fff;
       border: 1px solid var(--line);
       border-radius: 999px;
-      padding: 6px 12px;
+      padding: 6px 10px;
       font: inherit;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       cursor: pointer;
     }
+    #conv-list {
+      flex: 1;
+      overflow: auto;
+      padding: 8px;
+    }
+    .conv {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      text-align: left;
+      border: 0;
+      background: none;
+      border-radius: 8px;
+      padding: 8px 8px;
+      font: inherit;
+      cursor: pointer;
+      color: var(--ink);
+    }
+    .conv:hover { background: #ececec; }
+    .conv.active { background: #e5e5e5; }
+    .conv span {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.88rem;
+    }
+    .conv .del {
+      display: none;
+      padding: 2px 8px;
+      font-size: 0.75rem;
+    }
+    .conv:hover .del, .conv.active .del { display: inline-block; }
+    .app {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    .app-header {
+      flex: 0 0 auto;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    #user-label {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    #user-label strong { color: var(--ink); font-weight: 600; }
     #thread {
       flex: 1 1 auto;
       overflow: auto;
@@ -60,14 +116,8 @@
       color: var(--muted);
       font-size: 1.15rem;
     }
-    .msg {
-      max-width: 720px;
-      margin: 0 auto 28px;
-    }
-    .msg.user {
-      display: flex;
-      justify-content: flex-end;
-    }
+    .msg { max-width: 720px; margin: 0 auto 28px; }
+    .msg.user { display: flex; justify-content: flex-end; }
     .msg.user .bubble {
       max-width: 80%;
       background: var(--user-bg);
@@ -82,11 +132,7 @@
       line-height: 1.75;
       word-break: break-word;
     }
-    .msg.assistant .actions {
-      display: flex;
-      gap: 4px;
-      margin-top: 10px;
-    }
+    .msg.assistant .actions { display: flex; gap: 4px; margin-top: 10px; }
     .msg.assistant .actions button {
       background: none;
       border: 0;
@@ -100,10 +146,7 @@
     .msg.assistant .actions button:hover { background: var(--user-bg); }
     .msg.pending { color: var(--muted); }
     .msg.error { color: #b91c1c; white-space: pre-wrap; }
-    .composer-wrap {
-      flex: 0 0 auto;
-      padding: 0 16px 18px;
-    }
+    .composer-wrap { flex: 0 0 auto; padding: 0 16px 18px; }
     form {
       max-width: 720px;
       margin: 0 auto;
@@ -154,7 +197,6 @@
     .markdown p:first-child { margin-top: 0; }
     .markdown ul, .markdown ol { margin: 0.5em 0; padding-left: 1.35em; }
     .markdown li { margin: 0.25em 0; }
-    .markdown strong { font-weight: 650; }
     .markdown a { color: var(--link); text-decoration: none; }
     .markdown a:hover { text-decoration: underline; }
     .markdown blockquote {
@@ -163,81 +205,125 @@
       border-left: 3px solid #d4d4d4;
       color: #404040;
     }
-    .markdown blockquote p { margin: 0.35em 0; }
-    .markdown table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 0.8em 0;
-      font-size: 0.95em;
-    }
-    .markdown th, .markdown td {
-      border: 1px solid var(--line);
-      padding: 6px 10px;
-      text-align: left;
-    }
+    .markdown table { width: 100%; border-collapse: collapse; margin: 0.8em 0; font-size: 0.95em; }
+    .markdown th, .markdown td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; }
     .markdown th { background: #fafafa; }
-    .markdown code {
-      font-size: 0.9em;
-      background: #f4f4f4;
-      padding: 0.1em 0.35em;
-      border-radius: 4px;
-    }
-    .markdown pre {
-      overflow: auto;
-      background: #f4f4f4;
-      padding: 12px 14px;
-      border-radius: 10px;
-    }
+    .markdown code { font-size: 0.9em; background: #f4f4f4; padding: 0.1em 0.35em; border-radius: 4px; }
+    .markdown pre { overflow: auto; background: #f4f4f4; padding: 12px 14px; border-radius: 10px; }
     .markdown pre code { background: none; padding: 0; }
     .markdown hr { border: 0; border-top: 1px solid var(--line); margin: 1.2em 0; }
+    #gate {
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+    #gate.hidden { display: none; }
+    #gate .card {
+      width: min(360px, 90vw);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    }
+    #gate h2 { margin: 0 0 8px; font-size: 1.1rem; }
+    #gate p { margin: 0 0 14px; color: var(--muted); font-size: 0.9rem; }
+    #gate input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      margin-bottom: 12px;
+    }
+    #gate button {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      background: #0d0d0d;
+      color: #fff;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Job Finder</h1>
-    <button type="button" id="new-chat">新对话</button>
-  </header>
-  <div id="thread">
-    <div class="empty" id="empty">有什么想找的岗位？</div>
+  <div id="gate">
+    <div class="card">
+      <h2>输入用户 ID</h2>
+      <p>用来隔离会话列表。任意字母数字即可，例如 kyle。</p>
+      <input id="gate-input" maxlength="64" placeholder="user id" autocomplete="username" />
+      <button type="button" id="gate-ok">进入</button>
+    </div>
   </div>
-  <div class="composer-wrap">
-    <form id="form">
-      <textarea id="message" rows="1" placeholder="问点什么…" required></textarea>
-      <button type="submit" id="send" aria-label="发送">↑</button>
-    </form>
+  <aside>
+    <div class="top">
+      <h1>Job Finder</h1>
+      <button type="button" id="new-chat">新对话</button>
+    </div>
+    <div id="conv-list"></div>
+  </aside>
+  <div class="app">
+    <div class="app-header">
+      <span id="user-label">用户：—</span>
+      <button type="button" id="switch-user">切换用户</button>
+    </div>
+    <div id="thread">
+      <div class="empty" id="empty">有什么想找的岗位？</div>
+    </div>
+    <div class="composer-wrap">
+      <form id="form">
+        <textarea id="message" rows="1" placeholder="问点什么…" required></textarea>
+        <button type="submit" id="send" aria-label="发送">↑</button>
+      </form>
+    </div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
   <script>
     if (window.marked) marked.setOptions({ gfm: true, breaks: true });
 
+    const USER_KEY = "job-finder.user_id";
+    const USER_RE = /^[\w.@+-]{1,64}$/;
     const form = document.getElementById("form");
     const message = document.getElementById("message");
     const send = document.getElementById("send");
     const thread = document.getElementById("thread");
-    const empty = document.getElementById("empty");
-    let firstSend = true;
+    const convList = document.getElementById("conv-list");
+    const gate = document.getElementById("gate");
+    const gateInput = document.getElementById("gate-input");
+    const userLabel = document.getElementById("user-label");
+    let userId = localStorage.getItem(USER_KEY) || "";
+    let conversationId = null;
+
+    function convKey() {
+      return "job-finder.conversation_id." + userId;
+    }
+
+    function headers(json) {
+      const h = { "X-User-Id": userId };
+      if (json) h["Content-Type"] = "application/json";
+      return h;
+    }
+
+    function emptyEl() {
+      const el = document.createElement("div");
+      el.className = "empty";
+      el.id = "empty";
+      el.textContent = "有什么想找的岗位？";
+      return el;
+    }
 
     function resizeInput() {
       message.style.height = "auto";
       message.style.height = Math.min(message.scrollHeight, 160) + "px";
     }
     message.addEventListener("input", resizeInput);
-
-    document.getElementById("new-chat").addEventListener("click", () => {
-      firstSend = true;
-      thread.innerHTML = "";
-      empty.className = "empty";
-      empty.textContent = "有什么想找的岗位？";
-      thread.append(empty);
-      message.value = "";
-      resizeInput();
-      message.focus();
-    });
-
-    function hideEmpty() {
-      if (empty.parentNode) empty.remove();
-    }
 
     function renderMarkdown(text) {
       const el = document.createElement("div");
@@ -251,7 +337,6 @@
     }
 
     function addUser(text) {
-      hideEmpty();
       const wrap = document.createElement("div");
       wrap.className = "msg user";
       const bubble = document.createElement("div");
@@ -261,18 +346,10 @@
       thread.append(wrap);
     }
 
-    function addPending() {
-      const wrap = document.createElement("div");
-      wrap.className = "msg assistant pending";
-      wrap.textContent = "正在思考…";
-      thread.append(wrap);
-      thread.scrollTop = thread.scrollHeight;
-      return wrap;
-    }
-
     function addAssistant(text, target) {
-      target.className = "msg assistant";
-      target.textContent = "";
+      const wrap = target || document.createElement("div");
+      wrap.className = "msg assistant";
+      wrap.textContent = "";
       const md = renderMarkdown(text);
       const actions = document.createElement("div");
       actions.className = "actions";
@@ -285,9 +362,119 @@
         setTimeout(() => { copy.textContent = "复制"; }, 1200);
       });
       actions.append(copy);
-      target.append(md, actions);
+      wrap.append(md, actions);
+      if (!target) thread.append(wrap);
       thread.scrollTop = thread.scrollHeight;
     }
+
+    function showEmpty() {
+      thread.innerHTML = "";
+      thread.append(emptyEl());
+    }
+
+    function renderThread(messages) {
+      thread.innerHTML = "";
+      if (!messages.length) {
+        showEmpty();
+        return;
+      }
+      for (const item of messages) {
+        if (item.role === "user") addUser(item.content);
+        else if (item.role === "assistant") addAssistant(item.content);
+      }
+      thread.scrollTop = thread.scrollHeight;
+    }
+
+    function updateUserLabel() {
+      userLabel.innerHTML = "用户：<strong></strong>";
+      userLabel.querySelector("strong").textContent = userId || "—";
+    }
+
+    async function refreshList() {
+      if (!userId) return;
+      const res = await fetch("/api/conversations", { headers: headers() });
+      if (!res.ok) throw new Error("加载会话列表失败");
+      const items = await res.json();
+      convList.innerHTML = "";
+      for (const item of items) {
+        const row = document.createElement("div");
+        row.className = "conv" + (item.id === conversationId ? " active" : "");
+        const title = document.createElement("span");
+        title.textContent = item.title || "新对话";
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "del";
+        del.textContent = "删";
+        row.append(title, del);
+        row.addEventListener("click", (e) => {
+          if (e.target === del) return;
+          openConversation(item.id);
+        });
+        del.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          await fetch("/api/conversations/" + item.id, {
+            method: "DELETE",
+            headers: headers(),
+          });
+          if (conversationId === item.id) startNew();
+          else refreshList();
+        });
+        convList.append(row);
+      }
+    }
+
+    async function openConversation(id) {
+      conversationId = id;
+      localStorage.setItem(convKey(), id);
+      const res = await fetch("/api/conversations/" + id, { headers: headers() });
+      if (!res.ok) {
+        startNew();
+        return;
+      }
+      const data = await res.json();
+      renderThread(data.messages || []);
+      refreshList();
+    }
+
+    function startNew() {
+      conversationId = null;
+      localStorage.removeItem(convKey());
+      showEmpty();
+      refreshList();
+      message.focus();
+    }
+
+    async function enterAs(id) {
+      const next = (id || "").trim();
+      if (!USER_RE.test(next)) {
+        alert("用户 ID 仅支持字母数字及 . _ @ + -，最长 64");
+        return false;
+      }
+      userId = next;
+      localStorage.setItem(USER_KEY, userId);
+      conversationId = localStorage.getItem(convKey()) || null;
+      updateUserLabel();
+      gate.classList.add("hidden");
+      showEmpty();
+      await refreshList();
+      if (conversationId) await openConversation(conversationId);
+      message.focus();
+      return true;
+    }
+
+    function askUser(prefill) {
+      gate.classList.remove("hidden");
+      gateInput.value = prefill || "";
+      gateInput.focus();
+      gateInput.select();
+    }
+
+    document.getElementById("gate-ok").addEventListener("click", () => enterAs(gateInput.value));
+    gateInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") enterAs(gateInput.value);
+    });
+    document.getElementById("switch-user").addEventListener("click", () => askUser(userId));
+    document.getElementById("new-chat").addEventListener("click", startNew);
 
     message.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
@@ -298,28 +485,37 @@
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (!userId) {
+        askUser("");
+        return;
+      }
       const text = message.value.trim();
       if (!text) return;
       send.disabled = true;
+      const empty = document.getElementById("empty");
+      if (empty) empty.remove();
       addUser(text);
       message.value = "";
       resizeInput();
-      const pending = addPending();
+      const pending = document.createElement("div");
+      pending.className = "msg assistant pending";
+      pending.textContent = "正在思考…";
+      thread.append(pending);
+      thread.scrollTop = thread.scrollHeight;
       try {
+        const body = { message: text };
+        if (conversationId) body.conversation_id = conversationId;
         const res = await fetch("/api/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: text,
-            reset_history: firstSend,
-          }),
+          headers: headers(true),
+          body: JSON.stringify(body),
         });
         const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.detail || JSON.stringify(data));
-        }
-        firstSend = false;
+        if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+        conversationId = data.conversation_id;
+        localStorage.setItem(convKey(), conversationId);
         addAssistant(data.reply || "", pending);
+        refreshList();
       } catch (err) {
         pending.className = "msg error";
         pending.textContent = String(err.message || err);
@@ -328,6 +524,13 @@
         message.focus();
       }
     });
+
+    updateUserLabel();
+    if (userId && USER_RE.test(userId)) {
+      enterAs(userId);
+    } else {
+      askUser("");
+    }
   </script>
 </body>
 </html>
